@@ -12,6 +12,7 @@ require(MASS)
 library(Rfits)
 library(doParallel)
 library(bit64)
+library(yaml)
 CoreNumber = 4
 #
 ###################
@@ -22,19 +23,23 @@ CoreNumber = 4
 # ra=as.character(inputargs[1])
 # dec=as.character(inputargs[2])
 
-region = 'G09'
+inputargs=commandArgs(TRUE)
+configFilename=as.character(inputargs[1])
+config = yaml.load_file(configFilename)
 
+InputDir = config$path$tiles # could use the compressed or uncompressed ones really
+DetectDir = paste0(config$path$detect, config$version$detect, '/')
+MeasureDir = paste0(config$path$measure, config$version$detect, config$version$measure, '/')
+PlotDir = paste0(MeasureDir, "plots/")
+FixesDir = paste0(config$path$reference, 'segmentfixes/', config$version$fixes)
+RefDir = config$path$reference
 
-WAVESwideDir = '/Volumes/ThunderBay/WAVES/'
+DetectVersionSuffix = paste0('_', config$version$detect)
+MeasureVersionSuffix = paste0('_', config$version$detect, config$version$measure)
+FixesVersionSuffix = paste0('_', config$version$fixes)
 
-InputDir = paste0(WAVESwideDir, "profound/tiles_0.3Res/")
-DetectDir = paste0(WAVESwideDir, "profound/detect_0.3Res/")
-MeasureDir = paste0(WAVESwideDir, "profound/measure_0.3Res_WISE/")
-PlotDir = paste0(WAVESwideDir, "profound/plots/")
-FixesDir = paste0(WAVESwideDir, "profound/segmentFixes/")
-RefDir=paste0(WAVESwideDir, "ref_Sabine/")
-
-InputTargetCat=fread(paste0(RefDir, 'Tiles_', region, '.txt'))
+region = config$region
+InputTargetCat=fread(paste0(config$path$reference, config$referencefiles$tilelist[[region]]))
 
 #
 #################################
@@ -54,26 +59,26 @@ foreach(j=(1:length(InputTargetCat$RA)))%dopar%{
     print(paste0('Reading in SWarped images for: ', ra, '_', dec))
     
     #
-    kids_u=Rfits_point(paste0(InputDir, 'u_', ra, '_', dec, '.fits'), ext=1)
-    kids_g=Rfits_point(paste0(InputDir, 'g_', ra, '_', dec, '.fits'), ext=1)
-    kids_r=Rfits_point(paste0(InputDir, 'r_', ra, '_', dec, '.fits'), ext=1)
-    kids_i=Rfits_point(paste0(InputDir, 'i_', ra, '_', dec, '.fits'), ext=1)
-    viking_Z=Rfits_point(paste0(InputDir, 'Z_', ra, '_', dec, '.fits'), ext=1)
-    viking_Y=Rfits_point(paste0(InputDir, 'Y_', ra, '_', dec, '.fits'), ext=1)
-    viking_J=Rfits_point(paste0(InputDir, 'J_', ra, '_', dec, '.fits'), ext=1)
-    viking_H=Rfits_point(paste0(InputDir, 'H_', ra, '_', dec, '.fits'), ext=1)
-    viking_Ks=Rfits_point(paste0(InputDir, 'Ks_', ra, '_', dec, '.fits'), ext=1)
-    WISE_1=Rfits_point(paste0(InputDir, 'w1_', ra, '_', dec, '.fits'), ext=1)
-    WISE_2=Rfits_point(paste0(InputDir, 'w2_', ra, '_', dec, '.fits'), ext=1)
+    kids_u=Rfits_point(paste0(InputDir, 'VST/', config$version$tile, '/u_', ra, '_', dec, '_', config$version$tile, '.fits'), ext=1)
+    kids_g=Rfits_point(paste0(InputDir, 'VST/', config$version$tile, '/g_', ra, '_', dec, '_', config$version$tile, '.fits'), ext=1)
+    kids_r=Rfits_point(paste0(InputDir, 'VST/', config$version$tile, '/r_', ra, '_', dec, '_', config$version$tile, '.fits'), ext=1)
+    kids_i=Rfits_point(paste0(InputDir, 'VST/', config$version$tile, '/i_', ra, '_', dec, '_', config$version$tile, '.fits'), ext=1)
+    viking_Z=Rfits_point(paste0(InputDir, 'VISTA/', config$version$tile, '/Z_', ra, '_', dec, '_', config$version$tile, '.fits'), ext=1)
+    viking_Y=Rfits_point(paste0(InputDir, 'VISTA/', config$version$tile, '/Y_', ra, '_', dec, '_', config$version$tile, '.fits'), ext=1)
+    viking_J=Rfits_point(paste0(InputDir, 'VISTA/', config$version$tile, '/J_', ra, '_', dec, '_', config$version$tile, '.fits'), ext=1)
+    viking_H=Rfits_point(paste0(InputDir, 'VISTA/', config$version$tile, '/H_', ra, '_', dec, '_', config$version$tile, '.fits'), ext=1)
+    viking_Ks=Rfits_point(paste0(InputDir, 'VISTA/', config$version$tile, '/Ks_', ra, '_', dec, '_', config$version$tile, '.fits'), ext=1)
+    WISE_1=Rfits_point(paste0(InputDir, 'WISE/', config$version$tile, '/w1_', ra, '_', dec, '_', config$version$tile, '.fits'), ext=1)
+    WISE_2=Rfits_point(paste0(InputDir, 'WISE/', config$version$tile, '/w2_', ra, '_', dec, '_', config$version$tile, '.fits'), ext=1)
     
     
     #######################
     # Run ProFound Script #
     #######################
     #
-    detect_segim=Rfits_read(paste0(DetectDir,'waves_detect_', ra, '_', dec, '.fits'), pointer=FALSE, header=FALSE)$segim_orig
-    dilated_segim=Rfits_read(paste0(DetectDir,'waves_detect_', ra, '_', dec, '.fits'), pointer=FALSE, header=FALSE)$segim
-    segID_merge_new=readRDS(paste0(FixesDir,'waves_segID_merge_', ra, '_', dec, '.rds'))
+    detect_segim=Rfits_read(paste0(DetectDir,'waves_detect_', ra, '_', dec, DetectVersionSuffix, '.fits'), pointer=FALSE, header=FALSE)$segim_orig
+    dilated_segim=Rfits_read(paste0(DetectDir,'waves_detect_', ra, '_', dec, DetectVersionSuffix, '.fits'), pointer=FALSE, header=FALSE)$segim
+    segID_merge_new=readRDS(paste0(FixesDir,'waves_segID_merge_', ra, '_', dec, FixesVersionSuffix, '.rds'))
     # use the segim_orig instead of segim_dilate so that we can output undilated colour photometry. 
     fixed_segim=profoundSegimKeep(detect_segim, segID_merge = segID_merge_new)
     #
@@ -124,13 +129,13 @@ foreach(j=(1:length(InputTargetCat$RA)))%dopar%{
     everything$pro_detect$detect_segim=detect_segim
     everything$pro_detect$dilated_segim=dilated_segim
     everything$pro_detect$segID_merge=segID_merge_new
-    saveRDS(everything,file=paste0(MeasureDir,'waves_measured_', ra, '_', dec, '.rds'))
+    saveRDS(everything,file=paste0(MeasureDir,'waves_measured_', ra, '_', dec, MeasureVersionSuffix, '.rds'))
     #
     CairoPDF(file=paste0(PlotDir,'diagnostics_wise_', ra, '_', dec, '.pdf'),width=24.0,height=24.0)
     plot(everything$pro_detect)
     dev.off()
     ###
   }else{
-    print(paste0(MeasureDir,'waves_measured_', ra, '_', dec, '.rds already exists'))
+    print(paste0(MeasureDir,'waves_measured_', ra, '_', dec, MeasureVersionSuffix, '.rds already exists'))
   }
 }
